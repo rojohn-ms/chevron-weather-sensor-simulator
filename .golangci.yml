@@ -1,0 +1,53 @@
+run:
+  concurrency: 1
+  timeout: 30m
+  skip-dirs:
+    - cache
+
+linters:
+  enable:
+    - gocritic
+    - gofmt
+    - gosec
+    - govet
+    - prealloc
+    - revive
+    - unconvert
+
+  # The following linters are disabled due to 1.18; this removes the warnings
+  # https://github.com/golangci/golangci-lint/issues/2649
+  disable:
+    - gosimple
+    - staticcheck
+    - structcheck
+    - unused
+
+linters-settings:
+  gocritic:
+    enabled-tags:
+      - performance
+      - style
+      - experimental
+    disabled-checks:
+      - redundantSprint
+
+      # Known to fail with generics
+      # https://github.com/go-critic/go-critic/issues/1193
+      - hugeParam
+      - rangeValCopy
+      - typeDefFirst
+      - paramTypeCombine
+    # settings:
+      # hugeParam:
+        # Raised size limit to accommodate ID
+        # sizeThreshold: 150
+
+issues:
+  exclude:
+    # errcheck: Configure linter to disregard unchecked returned errors for these functions.
+    - Error return value of
+      .((os\.)?std(out|err)\..*|.*Close|.*LockRelease|.*Flush|os\.Remove(All)?|.*printf?|os\.(Un)?Setenv|.*Err).
+      is not checked
+    - unnamedResult
+
+  exclude-use-default: false

@@ -1,0 +1,6 @@
+output: '{{.Dir}}/README.md'
+format: azure-devops
+repository:
+    url: https://github.com/rojohn-ms/chevron-weather-sensor-simulator
+    defaultBranch: main
+    path: /

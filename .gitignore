@@ -1,0 +1,6 @@
+/bin/
+coverage.out
+devop-pat.txt
+github-pat.txt
+*user-config.json
+__debug_bin

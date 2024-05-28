@@ -14,7 +14,7 @@ func main() {
 	serverDone := make(chan bool)
 	go func() {
 		log.Println("Starting http server...")
-		server.Run(serverShutdown)
+		server.RunWeather(serverShutdown)
 		serverDone <- true
 	}()
 

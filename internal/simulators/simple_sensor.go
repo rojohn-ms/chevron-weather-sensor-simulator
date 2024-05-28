@@ -8,6 +8,7 @@ import (
 )
 
 type (
+	// SimpleSensorSim is a simple sensor simulator.
 	SimpleSensorSim struct {
 		// Sensor Id
 		SensorID string

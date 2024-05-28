@@ -13,26 +13,26 @@ import (
 var (
 	gofumpt = bintool.Must(bintool.New(
 		"gofumpt{{.BinExt}}",
-		"v0.3.1",
+		"v0.6.0",
 		"https://github.com/mvdan/gofumpt/releases/download/{{.Version}}/gofumpt_{{.Version}}_{{.GOOS}}_{{.GOARCH}}{{.BinExt}}",
 	))
 	goimports = bintool.Must(bintool.NewGo(
 		"golang.org/x/tools/cmd/goimports",
-		"v0.1.10",
+		"v0.21.0",
 		bintool.WithVersionCmd(""),
 	))
 	golines = bintool.Must(bintool.NewGo(
 		"github.com/segmentio/golines",
-		"v0.9.0",
+		"v0.11.0",
 	))
 	linter = bintool.Must(bintool.New(
 		"golangci-lint{{.BinExt}}",
-		"1.45.2",
+		"1.55.2",
 		"https://github.com/golangci/golangci-lint/releases/download/v{{.Version}}/golangci-lint-{{.Version}}-{{.GOOS}}-{{.GOARCH}}{{.ArchiveExt}}",
 	))
 	documenter = bintool.Must(bintool.New(
 		"gomarkdoc{{.BinExt}}",
-		"0.3.2",
+		"0.4.1",
 		"https://github.com/princjef/gomarkdoc/releases/download/v{{.Version}}/gomarkdoc_{{.Version}}_{{.GOOS}}_{{.GOARCH}}{{.ArchiveExt}}",
 	))
 	integrationHash = "integrationHash.out"

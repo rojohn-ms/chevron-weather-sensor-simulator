@@ -7,7 +7,7 @@ import (
 	"chevron-weather-sensor-simulator/internal/simulators"
 )
 
-// Run runs the web server
+// RunSimple runs the web server.
 func RunSimple(shutdown <-chan bool) {
 	deviceCfg := config.DefaultTemperatureSensorConfig()
 	simpleSensorSim := simulators.NewSimpleSensorSim(
@@ -29,7 +29,7 @@ func RunSimple(shutdown <-chan bool) {
 		close(idle)
 	}()
 
-	log.Printf("[server.Run] Starting device: [%s]\n", addr)
+	log.Printf("[server.Run] Starting simulation\n")
 	if err := simpleSensorSim.Run(); err != nil {
 		log.Printf("[server.Run][sim.Run] ERROR: %s\n", err)
 	}

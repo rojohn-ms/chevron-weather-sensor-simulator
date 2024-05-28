@@ -1,3 +1,4 @@
+// Package main is the main entrance point for the simulator.
 package main
 
 import (

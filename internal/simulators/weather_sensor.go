@@ -1,7 +1,9 @@
+// Package simulators contains various sensor simulators.
 package simulators
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand"
@@ -68,6 +70,9 @@ type (
 		// Context
 		ctx        context.Context
 		cancelFunc context.CancelFunc
+
+		// Sequence
+		seq uint64
 	}
 
 	// WeatherSensorData is the sensor data that will be created.
@@ -103,6 +108,8 @@ func NewWeatherSensorSim(
 
 		mqttServerURL: mqttServerURL,
 		mqttTopic:     mqttTopic,
+
+		seq: 0,
 	}
 }
 
@@ -189,14 +196,32 @@ func (s *WeatherSensorSim) Run() error {
 	}
 
 	// Wait for the connection to come up
-	if err = c.AwaitConnection(ctx); err != nil {
-		return err
+	if cerr := c.AwaitConnection(ctx); cerr != nil {
+		return cerr
 	}
 
 	go func() {
 		delay := s.DelayMin
 		log.Printf("Senor Id '%s': Started running 🔔\n", s.SensorID)
-		// s.SensorData <- s.CalculateNextValue()
+		payload, perr := s.calculateNextValue()
+		if perr != nil {
+			log.Printf("Senor error calculating data: %s 🔔\n", perr)
+			return
+		}
+
+		_, cperr := c.Publish(
+			ctx,
+			&paho.Publish{
+				Topic:   s.mqttTopic,
+				QoS:     byte(QoS1),
+				Payload: payload,
+			},
+		)
+		if cperr != nil {
+			log.Printf("Senor error publishing data: %s 🔔\n", cperr)
+			return
+		}
+
 		for {
 			select {
 			case <-s.mqttClient.Done():
@@ -212,7 +237,24 @@ func (s *WeatherSensorSim) Run() error {
 					) + s.DelayMin
 				}
 
-				// s.SensorData <- s.CalculateNextValue()
+				payload, perr := s.calculateNextValue()
+				if perr != nil {
+					log.Printf("Senor error calculating data: %s 🔔\n", perr)
+					continue
+				}
+
+				_, cperr := c.Publish(
+					ctx,
+					&paho.Publish{
+						Topic:   s.mqttTopic,
+						QoS:     byte(QoS1),
+						Payload: payload,
+					},
+				)
+				if cperr != nil {
+					log.Printf("Senor error publishing data: %s 🔔\n", cperr)
+					continue
+				}
 			}
 		}
 	}()
@@ -229,4 +271,16 @@ func (s *WeatherSensorSim) Stop() error {
 	}
 
 	return nil
+}
+
+func (s *WeatherSensorSim) calculateNextValue() ([]byte, error) {
+	s.seq++
+
+	data := WeatherSensorData{
+		Value:     float64(s.seq),
+		Timestamp: time.Now().UTC(),
+		Seq:       s.seq,
+	}
+
+	return json.Marshal(data)
 }

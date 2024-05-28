@@ -1,13 +1,15 @@
+// Package server contains various servers for running simulators.
 package server
 
 import (
-	"chevron-weather-sensor-simulator/internal/config"
-	"chevron-weather-sensor-simulator/internal/simulators"
 	"flag"
 	"log"
+
+	"chevron-weather-sensor-simulator/internal/config"
+	"chevron-weather-sensor-simulator/internal/simulators"
 )
 
-// Run runs the weather server
+// RunWeather runs the weather server.
 func RunWeather(shutdown <-chan bool) {
 	mqServerURLPtr := flag.String("mqServerURL", "", "The server URL for AIO MQ")
 	mqTopicPtr := flag.String("mqTopic", "", "The AIO MQ topic to send data to")
@@ -35,7 +37,7 @@ func RunWeather(shutdown <-chan bool) {
 		close(idle)
 	}()
 
-	log.Printf("[server.Run] Starting weather simulator: [%s]\n", addr)
+	log.Printf("[server.Run] Starting weather simulator\n")
 	if err := weatherSensorSim.Run(); err != nil {
 		log.Printf("[server.Run][sim.Run] ERROR: %s\n", err)
 	}

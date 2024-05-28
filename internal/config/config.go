@@ -1,3 +1,4 @@
+// Package config contains configuration information
 package config
 
 import (

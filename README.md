@@ -1,12 +1,10 @@
 # chevron-weather-sensor-simulator
 
-The simulator is a simple Go web server that exposes 2 types of endpoints based on the parameters passed on startup. <br/>
+The simulator is a simple Go simulator that sends data from a weather sensor simulator to AIO MQ. <br/>
 To start the simulator, you run the following:
 ```cmd
-$ ./chevron-weather-sensor-simulator --device=http://host:8080/deviceType/deviceTypeID1 ... --device=http://host:8080/deviceType/deviceTypeIDN
+$ ./weather-sim --mqServerURL "mqtts://aio-mq-dmqtt-frontend:8883" --mqTopic "foo-topic"
 ```
-
-The server will then expose N device endpoints, one for each of the `--device` parameters. <br/>
 
 ** Note: this is built using Golang v1.22.3
 
@@ -14,11 +12,11 @@ The server will then expose N device endpoints, one for each of the `--device` p
 ### Building locally
 If you want to build the code locally after some changes, run the following:
 ```cmd
-$ go build -o bin/weather-sim ./cmd/app
+mage ci
 ```
 
 ## Running
 To run the server, you can build using the steps above, then you can run using the following:
 ```cmd
-$ ./bin/weather-sim --device=http://host:8080/deviceType/deviceTypeID1 ... --device=http://host:8080/deviceType/deviceTypeIDN
+$ ./bin/weather-sim --mqServerURL "mqtts://aio-mq-dmqtt-frontend:8883" --mqTopic "foo-topic"
 ```

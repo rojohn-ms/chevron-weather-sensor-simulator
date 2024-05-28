@@ -6,6 +6,8 @@
 import "chevron-weather-sensor-simulator/cmd/app"
 ```
 
+Package main is the main entrance point for the simulator.
+
 ## Index
 
 

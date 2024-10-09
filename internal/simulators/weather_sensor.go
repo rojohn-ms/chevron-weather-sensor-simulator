@@ -5,10 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math/rand"
 	"net/url"
 	"time"
+
+	"chevron-weather-sensor-simulator/internal/logger"
 
 	"github.com/eclipse/paho.golang/autopaho"
 	"github.com/eclipse/paho.golang/paho"
@@ -50,7 +51,8 @@ type (
 		// Channel to send data to device
 		SensorData chan WeatherSensorData
 		// Done the sensor
-		Done chan bool
+		Done     chan bool
+		Shutdown chan bool
 
 		// Check if it's running
 		IsRunning bool
@@ -73,6 +75,9 @@ type (
 
 		// Sequence
 		seq uint64
+
+		// Logger
+		log logger.Log
 	}
 
 	// WeatherSensorData is the sensor data that will be created.
@@ -91,6 +96,7 @@ func NewWeatherSensorSim(
 	randomize bool,
 	mqttServerURL string,
 	mqttTopic string,
+	logLevel string,
 ) *WeatherSensorSim {
 	rand.New(rand.NewSource(time.Now().UnixNano())) // nolint:gosec // not used for crypto
 	isAssigned := false
@@ -101,6 +107,7 @@ func NewWeatherSensorSim(
 		IsAssigned: &isAssigned,
 		SensorData: make(chan WeatherSensorData),
 		Done:       make(chan bool, 1),
+		Shutdown:   make(chan bool, 1),
 		DelayMin:   delayMin,
 		DelayMax:   delayMax,
 		Randomize:  randomize,
@@ -110,13 +117,15 @@ func NewWeatherSensorSim(
 		mqttTopic:     mqttTopic,
 
 		seq: 0,
+
+		log: logger.New(logLevel),
 	}
 }
 
 // Run runs the weather simulator.
 func (s *WeatherSensorSim) Run() error {
 	if s.IsRunning {
-		log.Printf("Senor Id '%s': Already running 🔔\n", s.SensorID)
+		s.log.Printf("Senor Id '%s': Already running 🔔\n", s.SensorID)
 		return nil
 	}
 
@@ -132,13 +141,15 @@ func (s *WeatherSensorSim) Run() error {
 		return err
 	}
 
+	s.log.Printf("Attempting to connect on %s\n", s.mqttServerURL)
+
 	cliCfg := autopaho.ClientConfig{
 		ServerUrls:                    []*url.URL{u},
 		KeepAlive:                     20,
 		CleanStartOnInitialConnection: false,
 		SessionExpiryInterval:         60,
 		OnConnectionUp: func(cm *autopaho.ConnectionManager, connAck *paho.Connack) {
-			log.Printf("MQTT connection established on %s\n", s.mqttServerURL)
+			s.log.Printf("MQTT connection established on %s\n", s.mqttServerURL)
 
 			// Subscribing in the OnConnectionUp callback is recommended (ensures the subscription is reestablished if
 			// the connection drops)
@@ -148,13 +159,13 @@ func (s *WeatherSensorSim) Run() error {
 				},
 			})
 			if err != nil {
-				log.Printf("Failed to subscribe (%s). This is likely to mean no messages will be received.", err)
+				s.log.Printf("Failed to subscribe (%s). This is likely to mean no messages will be received.", err)
 			}
 
-			log.Println("MQTT subscription made")
+			s.log.Println("MQTT subscription made")
 		},
 		OnConnectError: func(err error) {
-			log.Printf("error whilst attempting connection: %s\n", err)
+			s.log.Printf("error whilst attempting connection: %s\n", err)
 		},
 		ClientConfig: paho.ClientConfig{
 			// If you are using QOS 1/2, then it's important to specify a client id (which must be unique)
@@ -163,25 +174,12 @@ func (s *WeatherSensorSim) Run() error {
 				ClientIDPrefix,
 				uuid.New(),
 			),
-			// OnPublishReceived is a slice of functions that will be called when a message is received.
-			// You can write the function(s) yourself or use the supplied Router
-			OnPublishReceived: []func(paho.PublishReceived) (bool, error){
-				func(pr paho.PublishReceived) (bool, error) {
-					log.Printf(
-						"Received message on topic %s; body: %s (retain: %t)\n",
-						pr.Packet.Topic,
-						pr.Packet.Payload,
-						pr.Packet.Retain,
-					)
-					return true, nil
-				},
-			},
 			OnClientError: func(err error) { fmt.Printf("client error: %s\n", err) },
 			OnServerDisconnect: func(d *paho.Disconnect) {
 				if d.Properties != nil {
-					log.Printf("Server requested disconnect: %s\n", d.Properties.ReasonString)
+					s.log.Printf("Server requested disconnect: %s\n", d.Properties.ReasonString)
 				} else {
-					log.Printf("Server requested disconnect; reason code: %d\n", d.ReasonCode)
+					s.log.Printf("Server requested disconnect; reason code: %d\n", d.ReasonCode)
 				}
 			},
 		},
@@ -202,13 +200,14 @@ func (s *WeatherSensorSim) Run() error {
 
 	go func() {
 		delay := s.DelayMin
-		log.Printf("Senor Id '%s': Started running 🔔\n", s.SensorID)
+		s.log.Printf("Senor Id '%s': Started running 🔔\n", s.SensorID)
 		payload, perr := s.calculateNextValue()
 		if perr != nil {
-			log.Printf("Senor error calculating data: %s 🔔\n", perr)
+			s.log.Printf("Senor error calculating data: %s 🔔\n", perr)
 			return
 		}
 
+		s.log.Printf("Publishing data to MQ: %s\n", string(payload))
 		_, cperr := c.Publish(
 			ctx,
 			&paho.Publish{
@@ -218,14 +217,14 @@ func (s *WeatherSensorSim) Run() error {
 			},
 		)
 		if cperr != nil {
-			log.Printf("Senor error publishing data: %s 🔔\n", cperr)
+			s.log.Printf("Senor error publishing data: %s 🔔\n", cperr)
 			return
 		}
 
 		for {
 			select {
-			case <-s.mqttClient.Done():
-				log.Printf("Senor Id '%s': Got shutdown signal 🔔\n", s.SensorID)
+			case <-s.Shutdown:
+				s.log.Printf("Senor Id '%s': Got shutdown signal 🔔\n", s.SensorID)
 				s.IsRunning = false
 				s.Done <- true
 				return
@@ -239,10 +238,11 @@ func (s *WeatherSensorSim) Run() error {
 
 				payload, perr := s.calculateNextValue()
 				if perr != nil {
-					log.Printf("Senor error calculating data: %s 🔔\n", perr)
+					s.log.Printf("Senor error calculating data: %s 🔔\n", perr)
 					continue
 				}
 
+				s.log.Printf("Publishing data to MQ: %s\n", string(payload))
 				_, cperr := c.Publish(
 					ctx,
 					&paho.Publish{
@@ -252,7 +252,7 @@ func (s *WeatherSensorSim) Run() error {
 					},
 				)
 				if cperr != nil {
-					log.Printf("Senor error publishing data: %s 🔔\n", cperr)
+					s.log.Printf("Senor error publishing data: %s 🔔\n", cperr)
 					continue
 				}
 			}
@@ -266,8 +266,9 @@ func (s *WeatherSensorSim) Run() error {
 func (s *WeatherSensorSim) Stop() error {
 	if s.IsRunning {
 		s.cancelFunc()
+		s.Shutdown <- true
 		<-s.Done
-		log.Printf("Weather Senor Id '%s': Stopped 🔔\n", s.SensorID)
+		s.log.Printf("Weather Senor Id '%s': Stopped 🔔\n", s.SensorID)
 	}
 
 	return nil

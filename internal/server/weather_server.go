@@ -3,9 +3,9 @@ package server
 
 import (
 	"flag"
-	"log"
 
 	"chevron-weather-sensor-simulator/internal/config"
+	"chevron-weather-sensor-simulator/internal/logger"
 	"chevron-weather-sensor-simulator/internal/simulators"
 )
 
@@ -13,8 +13,10 @@ import (
 func RunWeather(shutdown <-chan bool) {
 	mqServerURLPtr := flag.String("mqServerURL", "", "The server URL for AIO MQ")
 	mqTopicPtr := flag.String("mqTopic", "", "The AIO MQ topic to send data to")
+	logLvlPtr := flag.String("logLevel", "", "The log level to use. Valid options are [ info, debug, none ]")
 	flag.Parse()
 
+	log := logger.New(*logLvlPtr)
 	deviceCfg := config.DefaultTemperatureSensorConfig()
 	weatherSensorSim := simulators.NewWeatherSensorSim(
 		"weather-sim",
@@ -23,6 +25,7 @@ func RunWeather(shutdown <-chan bool) {
 		deviceCfg.Randomize,
 		*mqServerURLPtr,
 		*mqTopicPtr,
+		*logLvlPtr,
 	)
 
 	idle := make(chan struct{})

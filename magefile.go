@@ -115,10 +115,8 @@ func DocVerify() error {
 	)
 }
 
-func Build() error {
-	return shellcmd.RunAll(
-		`go build -o bin/app ./cmd/app`,
-	)
+func Build(appName string) error {
+	return shellcmd.RunAll(shellcmd.Command(fmt.Sprintf("go build -o bin/%s ./cmd/app", appName)))
 }
 
 func BuildDebug() error {
@@ -179,7 +177,7 @@ func CIVerify() error {
 }
 
 func Start() error {
-	if err := Build(); err != nil {
+	if err := Build("app"); err != nil {
 		return err
 	}
 	return shellcmd.Command(`./bin/app`).Run()
